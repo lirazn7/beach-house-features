@@ -4,14 +4,26 @@ const calendarId = process.env.GOOGLE_CALENDAR_ID ?? "primary";
 const calendarTimeZone = "America/Sao_Paulo";
 const preReservationPrefix = "Pré-reserva — ";
 
+/**
+ * NOVA FUNÇÃO DE AUTENTICAÇÃO:
+ * Lê o e-mail e a chave privada separadamente das variáveis de ambiente
+ * e utiliza o JWT (JSON Web Token) para autenticar.
+ */
 function getCalendarClient() {
-  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-  if (!raw) throw new Error("GOOGLE_SERVICE_ACCOUNT_JSON env var is not set");
-  const credentials = JSON.parse(raw) as object;
-  const auth = new google.auth.GoogleAuth({
-    credentials,
+  const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
+  // O .replace garante que as quebras de linha (\n) da string sejam lidas corretamente
+  const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+
+  if (!clientEmail || !privateKey) {
+    throw new Error("As variáveis GOOGLE_CLIENT_EMAIL ou GOOGLE_PRIVATE_KEY não estão configuradas.");
+  }
+
+  const auth = new google.auth.JWT({
+    email: clientEmail,
+    key: privateKey,
     scopes: ["https://www.googleapis.com/auth/calendar"],
   });
+
   return google.calendar({ version: "v3", auth });
 }
 
