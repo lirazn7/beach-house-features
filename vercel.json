@@ -1,6 +1,0 @@
-{
-  "installCommand": "pnpm install",
-  "buildCommand": "pnpm --filter @workspace/casa-juquehy run build",
-  "outputDirectory": "artifacts/casa-juquehy/dist/public",
-  "framework": null
-}
