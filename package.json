@@ -15,7 +15,8 @@
     "googleapis": "^173.0.0"
   },
   "devDependencies": {
-    "prettier": "^3.9.5",
-    "typescript": "~5.9.3"
+    "prettier": "3.9.5",
+    "typescript": "5.9.3",
+    "@types/node": "^20.0.0"
   }
 }
