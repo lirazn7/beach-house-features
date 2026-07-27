@@ -2,21 +2,25 @@
   "name": "workspace",
   "version": "0.0.0",
   "license": "MIT",
+  "private": true,
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
   },
-  "private": true,
   "dependencies": {
     "@replit/connectors-sdk": "^0.4.1",
     "@vercel/node": "^5.8.27",
     "googleapis": "^173.0.0"
   },
   "devDependencies": {
+    "@types/node": "^20.0.0",
     "prettier": "3.9.5",
-    "typescript": "5.9.3",
-    "@types/node": "^20.0.0"
+    "typescript": "5.9.3"
   }
 }
