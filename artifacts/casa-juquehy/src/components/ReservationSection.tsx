@@ -240,7 +240,7 @@ export function ReservationSection() {
         },
       },
       {
-        onSuccess: (result) => {
+        onSuccess: (result: any) => {
           setSuccess({
             checkIn: result.checkIn,
             checkOut: result.checkOut,
@@ -248,7 +248,7 @@ export function ReservationSection() {
             whatsappUrl: result.whatsappUrl,
           });
         },
-        onError: (error) => {
+        onError: (error: any) => {
           setFormError(
             getErrorMessage(
               error,
