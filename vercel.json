@@ -1,0 +1,6 @@
+{
+  "installCommand": "pnpm install",
+  "buildCommand": "pnpm run typecheck && pnpm -r --if-present run build",
+  "outputDirectory": "artifacts/casa-juquehy/dist/public",
+  "framework": null
+}
