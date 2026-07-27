@@ -3,9 +3,11 @@
   "compileOnSave": false,
   "compilerOptions": {
     "lib": ["es2022", "dom"],
-    "types": ["node"]
+    "types": ["node"],
+    "module": "ESNext",
+    "moduleResolution": "node"
   },
-  "include": ["api/**/*"],
+  "include": ["artifacts/casa-juquehy/api/**/*"],
   "references": [
     {
       "path": "./lib/db"
