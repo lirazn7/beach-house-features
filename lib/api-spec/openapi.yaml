@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: reservations
+    description: Availability and reservation requests
 paths:
   /healthz:
     get:
@@ -24,6 +26,75 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /availability:
+    get:
+      operationId: getAvailability
+      tags: [reservations]
+      summary: Get occupied dates for a month
+      parameters:
+        - name: year
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 2020
+            maximum: 2100
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+      responses:
+        "200":
+          description: Dates occupied by confirmed Calendar events
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Availability"
+        "502":
+          description: Calendar provider unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /reservation-requests:
+    post:
+      operationId: createReservationRequest
+      tags: [reservations]
+      summary: Create a pre-reservation request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReservationRequestInput"
+      responses:
+        "201":
+          description: Pre-reservation created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReservationRequest"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Date is no longer available
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Calendar provider unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +104,62 @@ components:
           type: string
       required:
         - status
+    Availability:
+      type: object
+      properties:
+        year:
+          type: integer
+        month:
+          type: integer
+        occupiedDates:
+          type: array
+          items:
+            type: string
+      required:
+        - year
+        - month
+        - occupiedDates
+    ReservationRequestInput:
+      type: object
+      properties:
+        date:
+          type: string
+        name:
+          type: string
+          minLength: 2
+          maxLength: 120
+        phone:
+          type: string
+          minLength: 8
+          maxLength: 30
+      required:
+        - date
+        - name
+        - phone
+    ReservationRequest:
+      type: object
+      properties:
+        eventId:
+          type: string
+        date:
+          type: string
+        name:
+          type: string
+        phone:
+          type: string
+        whatsappUrl:
+          type: string
+      required:
+        - eventId
+        - date
+        - name
+        - phone
+        - whatsappUrl
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
 

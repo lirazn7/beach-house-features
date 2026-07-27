@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Gallery } from '@/components/Gallery';
+import { ReservationSection } from '@/components/ReservationSection';
 import { Reveal } from '@/components/Reveal';
 import { HERO_IMAGE, GALLERY_IMAGES } from '@/lib/images';
 import { 
@@ -25,7 +26,7 @@ function RevealImage({ src, alt, className }: { src: string, alt: string, classN
 }
 
 export default function App() {
-  const WHATSAPP_LINK = "#";
+  const WHATSAPP_LINK = "https://wa.me/5511953553708";
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden selection:bg-primary/20 selection:text-foreground">
@@ -66,7 +67,7 @@ export default function App() {
               className="bg-primary text-primary-foreground hover:bg-primary/90 text-lg px-8 py-6 rounded-full shadow-xl transition-transform hover:scale-105"
               asChild
             >
-              <a href={WHATSAPP_LINK} target="_blank" rel="noopener noreferrer">
+              <a href="#reservas">
                 Ver Disponibilidade
               </a>
             </Button>
@@ -226,7 +227,10 @@ export default function App() {
         </div>
       </section>
 
-      {/* 6. LOCATION */}
+      {/* 6. RESERVATION */}
+      <ReservationSection />
+
+      {/* 7. LOCATION */}
       <section className="py-24 md:py-32 px-6 relative overflow-hidden bg-accent/20">
         <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
           <div className="space-y-8 z-10">
@@ -268,7 +272,7 @@ export default function App() {
         </div>
       </section>
 
-      {/* 7. CTA & FOOTER */}
+       {/* 8. CTA & FOOTER */}
       <section className="bg-foreground text-background py-32 px-6 text-center">
         <div className="max-w-3xl mx-auto space-y-10">
           <Reveal animation="fade-up">

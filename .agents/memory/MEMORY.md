@@ -1,0 +1,1 @@
+- [Calendar date handling](calendar-date-handling.md) — booking availability must treat timed same-day Calendar events as occupying one full selectable night.
