@@ -10,7 +10,9 @@
   },
   "private": true,
   "dependencies": {
-    "@replit/connectors-sdk": "^0.4.1"
+    "@replit/connectors-sdk": "^0.4.1",
+    "@vercel/node": "^5.8.27",
+    "googleapis": "^173.0.0"
   },
   "devDependencies": {
     "prettier": "^3.9.5",
