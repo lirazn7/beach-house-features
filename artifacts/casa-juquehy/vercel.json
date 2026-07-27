@@ -1,6 +1,6 @@
 {
   "installCommand": "pnpm install",
   "buildCommand": "tsc -b && vite build",
-  "outputDirectory": "artifacts/casa-juquehy/dist/public",
+  "outputDirectory": "dist/public",
   "framework": null
 }
