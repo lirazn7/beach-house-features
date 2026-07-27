@@ -122,8 +122,12 @@ components:
     ReservationRequestInput:
       type: object
       properties:
-        date:
+        checkIn:
           type: string
+          description: ISO date string (YYYY-MM-DD) for the first night of the stay
+        checkOut:
+          type: string
+          description: ISO date string (YYYY-MM-DD) for the departure day (exclusive end)
         name:
           type: string
           minLength: 2
@@ -133,7 +137,8 @@ components:
           minLength: 8
           maxLength: 30
       required:
-        - date
+        - checkIn
+        - checkOut
         - name
         - phone
     ReservationRequest:
@@ -141,8 +146,12 @@ components:
       properties:
         eventId:
           type: string
-        date:
+        checkIn:
           type: string
+        checkOut:
+          type: string
+        nights:
+          type: integer
         name:
           type: string
         phone:
@@ -151,7 +160,9 @@ components:
           type: string
       required:
         - eventId
-        - date
+        - checkIn
+        - checkOut
+        - nights
         - name
         - phone
         - whatsappUrl

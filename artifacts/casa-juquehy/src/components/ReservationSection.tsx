@@ -1,12 +1,14 @@
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useCallback, useMemo, useRef, useState } from "react";
 import {
   addDays,
   addMonths,
+  differenceInCalendarDays,
   endOfMonth,
   format,
   getDay,
   isBefore,
   isSameDay,
+  isWithinInterval,
   startOfDay,
   startOfMonth,
   subMonths,
@@ -34,7 +36,11 @@ import { cn } from "@/lib/utils";
 
 const WEEKDAYS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
 
-function formatDateForGuest(date: Date) {
+function formatDateShort(date: Date) {
+  return format(date, "d 'de' MMM", { locale: ptBR });
+}
+
+function formatDateLong(date: Date) {
   return format(date, "EEEE, d 'de' MMMM", { locale: ptBR });
 }
 
@@ -43,20 +49,30 @@ function getErrorMessage(error: unknown, fallback: string) {
     const data = (error as { data?: { error?: string } }).data;
     if (data?.error) return data.error;
   }
-
   return fallback;
 }
 
+type SelectionStep = "checkIn" | "checkOut";
+
 export function ReservationSection() {
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(new Date()));
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [checkIn, setCheckIn] = useState<Date | null>(null);
+  const [checkOut, setCheckOut] = useState<Date | null>(null);
+  const [step, setStep] = useState<SelectionStep>("checkIn");
+  const [hoverDate, setHoverDate] = useState<Date | null>(null);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [formError, setFormError] = useState("");
   const [success, setSuccess] = useState<{
-    date: string;
+    checkIn: string;
+    checkOut: string;
+    nights: number;
     whatsappUrl: string;
   } | null>(null);
+
+  // Accumulate occupied dates across all fetched months so range validation
+  // works even when check-in and check-out are in different months.
+  const occupiedCacheRef = useRef<Map<string, Set<string>>>(new Map());
 
   const params = useMemo(
     () => ({
@@ -65,54 +81,139 @@ export function ReservationSection() {
     }),
     [visibleMonth],
   );
+
+  // Also prefetch the next month so the user can see ahead when selecting check-out.
+  const nextMonthDate = addMonths(visibleMonth, 1);
+  const nextParams = useMemo(
+    () => ({
+      year: nextMonthDate.getFullYear(),
+      month: nextMonthDate.getMonth() + 1,
+    }),
+    [nextMonthDate],
+  );
+
   const availabilityQuery = useGetAvailability(params, {
     query: { queryKey: getGetAvailabilityQueryKey(params) },
   });
+  const nextMonthQuery = useGetAvailability(nextParams, {
+    query: { queryKey: getGetAvailabilityQueryKey(nextParams) },
+  });
   const reservationMutation = useCreateReservationRequest();
 
-  const occupiedDates = useMemo(
-    () => new Set(availabilityQuery.data?.occupiedDates ?? []),
-    [availabilityQuery.data?.occupiedDates],
+  // Merge fetched data into the running cache.
+  useMemo(() => {
+    if (availabilityQuery.data) {
+      const key = `${availabilityQuery.data.year}-${availabilityQuery.data.month}`;
+      occupiedCacheRef.current.set(key, new Set(availabilityQuery.data.occupiedDates));
+    }
+  }, [availabilityQuery.data]);
+
+  useMemo(() => {
+    if (nextMonthQuery.data) {
+      const key = `${nextMonthQuery.data.year}-${nextMonthQuery.data.month}`;
+      occupiedCacheRef.current.set(key, new Set(nextMonthQuery.data.occupiedDates));
+    }
+  }, [nextMonthQuery.data]);
+
+  // Merge all cached occupied dates into a flat set.
+  const allOccupiedDates = useMemo(() => {
+    const merged = new Set<string>();
+    for (const dateSet of occupiedCacheRef.current.values()) {
+      for (const d of dateSet) merged.add(d);
+    }
+    return merged;
+  }, [availabilityQuery.data, nextMonthQuery.data]);
+
+  // Find the first occupied date strictly after a given date (used to cap
+  // the checkout range when check-in is already selected).
+  const firstOccupiedAfter = useCallback(
+    (from: Date): Date | null => {
+      let cursor = addDays(from, 1);
+      for (let i = 0; i < 365; i++) {
+        if (allOccupiedDates.has(format(cursor, "yyyy-MM-dd"))) return cursor;
+        cursor = addDays(cursor, 1);
+      }
+      return null;
+    },
+    [allOccupiedDates],
   );
+
   const calendarDays = useMemo(() => {
     const firstDay = startOfMonth(visibleMonth);
     const leadingDays = getDay(firstDay);
     const totalDays = endOfMonth(visibleMonth).getDate();
     const gridLength = Math.ceil((leadingDays + totalDays) / 7) * 7;
-
-    return Array.from({ length: gridLength }, (_, index) =>
-      addDays(firstDay, index - leadingDays),
-    );
+    return Array.from({ length: gridLength }, (_, i) => addDays(firstDay, i - leadingDays));
   }, [visibleMonth]);
+
   const today = startOfDay(new Date());
   const isCalendarLoading = availabilityQuery.isLoading || availabilityQuery.isFetching;
-  const selectedDateKey = selectedDate ? format(selectedDate, "yyyy-MM-dd") : "";
+
+  // The ceiling check-out (exclusive) when check-in is set.
+  const maxCheckOut = useMemo(
+    () => (checkIn ? firstOccupiedAfter(checkIn) : null),
+    [checkIn, firstOccupiedAfter],
+  );
 
   const moveMonth = (direction: "previous" | "next") => {
-    setVisibleMonth((current) =>
-      direction === "previous" ? subMonths(current, 1) : addMonths(current, 1),
+    setVisibleMonth((cur) =>
+      direction === "previous" ? subMonths(cur, 1) : addMonths(cur, 1),
     );
-    setSelectedDate(null);
     setFormError("");
+  };
+
+  const resetSelection = () => {
+    setCheckIn(null);
+    setCheckOut(null);
+    setStep("checkIn");
+    setHoverDate(null);
+    setFormError("");
+    setSuccess(null);
   };
 
   const handleSelectDate = (date: Date) => {
     const dateKey = format(date, "yyyy-MM-dd");
-    const isOccupied = occupiedDates.has(dateKey);
+    const isOccupied = allOccupiedDates.has(dateKey);
     const isPast = isBefore(date, today);
-
     if (isOccupied || isPast || isCalendarLoading) return;
 
-    setSelectedDate(date);
+    if (step === "checkIn") {
+      setCheckIn(date);
+      setCheckOut(null);
+      setStep("checkOut");
+      setFormError("");
+      setSuccess(null);
+      return;
+    }
+
+    // step === "checkOut"
+    if (!checkIn) return;
+
+    // Clicking before or equal to check-in restarts selection.
+    if (!isBefore(checkIn, date)) {
+      setCheckIn(date);
+      setCheckOut(null);
+      setStep("checkOut");
+      setFormError("");
+      return;
+    }
+
+    // Block if the range would cross an occupied date.
+    if (maxCheckOut && !isBefore(date, maxCheckOut)) {
+      setFormError("O período inclui datas já ocupadas. Escolha um check-out anterior.");
+      return;
+    }
+
+    setCheckOut(date);
+    setStep("checkIn"); // ready to submit or start new selection
     setFormError("");
-    setSuccess(null);
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!selectedDate) {
-      setFormError("Escolha uma noite no calendário para continuar.");
+    if (!checkIn || !checkOut) {
+      setFormError("Escolha o período (check-in e check-out) no calendário.");
       return;
     }
 
@@ -128,29 +229,48 @@ export function ReservationSection() {
 
     setFormError("");
     setSuccess(null);
+
     reservationMutation.mutate(
       {
         data: {
-          date: selectedDateKey,
+          checkIn: format(checkIn, "yyyy-MM-dd"),
+          checkOut: format(checkOut, "yyyy-MM-dd"),
           name: name.trim(),
           phone: phone.trim(),
         },
       },
       {
         onSuccess: (result) => {
-          setSuccess({ date: result.date, whatsappUrl: result.whatsappUrl });
+          setSuccess({
+            checkIn: result.checkIn,
+            checkOut: result.checkOut,
+            nights: result.nights,
+            whatsappUrl: result.whatsappUrl,
+          });
         },
         onError: (error) => {
           setFormError(
             getErrorMessage(
               error,
-              "Não conseguimos guardar esta data agora. Tente novamente em instantes.",
+              "Não conseguimos guardar este período agora. Tente novamente em instantes.",
             ),
           );
         },
       },
     );
   };
+
+  const nights =
+    checkIn && checkOut ? differenceInCalendarDays(checkOut, checkIn) : null;
+
+  // Preview end date as the user hovers when check-in is set but check-out is not.
+  const previewEnd =
+    step === "checkOut" && checkIn && hoverDate && isBefore(checkIn, hoverDate)
+      ? hoverDate
+      : null;
+
+  const rangeStart = checkIn;
+  const rangeEnd = checkOut ?? previewEnd;
 
   return (
     <section
@@ -163,6 +283,7 @@ export function ReservationSection() {
 
       <div className="relative mx-auto max-w-7xl">
         <div className="grid gap-12 lg:grid-cols-[0.82fr_1.18fr] lg:items-start lg:gap-20">
+          {/* ── Left column ─────────────────────────────── */}
           <div className="space-y-8 lg:sticky lg:top-10">
             <Reveal animation="fade-up">
               <span className="mb-4 block text-sm font-semibold uppercase tracking-[0.22em] text-secondary">
@@ -172,34 +293,42 @@ export function ReservationSection() {
                 data-testid="heading-reservation"
                 className="max-w-lg text-4xl leading-[1.08] text-foreground md:text-6xl"
               >
-                Escolha uma noite para chamar de sua.
+                Escolha o período que você quer ficar.
               </h2>
             </Reveal>
 
             <Reveal animation="fade-up" delay={150}>
               <p className="max-w-md text-lg font-light leading-relaxed text-muted-foreground">
-                Consulte o calendário com calma. Ao enviar seus dados, deixamos tudo pré-reservado
-                e seguimos a conversa pelo WhatsApp, sem compromisso.
+                Selecione o check-in e o check-out no calendário. Ao enviar seus dados,
+                deixamos o período pré-reservado e combinamos os detalhes pelo WhatsApp.
               </p>
             </Reveal>
 
             <Reveal animation="fade-up" delay={250}>
               <div className="space-y-5 border-l border-primary/40 pl-5">
                 <div className="flex items-start gap-3">
-                  <ShieldCheck className="mt-0.5 shrink-0 text-secondary" size={20} strokeWidth={1.5} />
+                  <ShieldCheck
+                    className="mt-0.5 shrink-0 text-secondary"
+                    size={20}
+                    strokeWidth={1.5}
+                  />
                   <div>
                     <p className="font-medium text-foreground">Seu pedido é cuidado de perto</p>
                     <p className="mt-1 text-sm font-light leading-relaxed text-muted-foreground">
-                      Uma pessoa da Casa confirma os detalhes com você.
+                      Uma pessoa da Casa confirma os detalhes com você pelo WhatsApp.
                     </p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <Sparkles className="mt-0.5 shrink-0 text-primary" size={20} strokeWidth={1.5} />
+                  <Sparkles
+                    className="mt-0.5 shrink-0 text-primary"
+                    size={20}
+                    strokeWidth={1.5}
+                  />
                   <div>
-                    <p className="font-medium text-foreground">Uma noite, um começo</p>
+                    <p className="font-medium text-foreground">Sem pagamento agora</p>
                     <p className="mt-1 text-sm font-light leading-relaxed text-muted-foreground">
-                      Se precisar de mais dias, conte no WhatsApp depois do pedido.
+                      A confirmação e o combinado financeiro acontecem diretamente com a Casa.
                     </p>
                   </div>
                 </div>
@@ -207,11 +336,13 @@ export function ReservationSection() {
             </Reveal>
           </div>
 
+          {/* ── Right column / card ──────────────────────── */}
           <Reveal animation="fade-up" delay={150}>
             <div
               data-testid="reservation-card"
               className="overflow-hidden rounded-[2rem] border border-white/70 bg-background/90 shadow-[0_24px_70px_rgba(87,65,45,0.12)] backdrop-blur-sm"
             >
+              {/* Calendar header */}
               <div className="border-b border-border/70 px-6 pb-5 pt-7 md:px-9">
                 <div className="flex items-center justify-between gap-4">
                   <div>
@@ -250,6 +381,43 @@ export function ReservationSection() {
                     </Button>
                   </div>
                 </div>
+
+                {/* Step indicator */}
+                <div className="mt-4 flex items-center gap-3">
+                  <span
+                    className={cn(
+                      "rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide transition-colors",
+                      step === "checkIn" && !checkIn
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-accent text-muted-foreground",
+                    )}
+                  >
+                    1 · Check-in
+                  </span>
+                  <span className="text-muted-foreground/40">→</span>
+                  <span
+                    className={cn(
+                      "rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide transition-colors",
+                      step === "checkOut"
+                        ? "bg-primary text-primary-foreground"
+                        : checkOut
+                          ? "bg-accent text-muted-foreground"
+                          : "text-muted-foreground/50",
+                    )}
+                  >
+                    2 · Check-out
+                  </span>
+                  {(checkIn || checkOut) && (
+                    <button
+                      type="button"
+                      onClick={resetSelection}
+                      className="ml-auto text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                    >
+                      Limpar
+                    </button>
+                  )}
+                </div>
+
                 <p
                   data-testid="status-availability"
                   className="mt-3 flex min-h-5 items-center gap-2 text-sm font-light text-muted-foreground"
@@ -270,13 +438,18 @@ export function ReservationSection() {
                 </p>
               </div>
 
+              {/* Calendar grid */}
               <div className="px-6 py-6 md:px-9">
                 {availabilityQuery.isError ? (
                   <div
                     data-testid="status-availability-error"
                     className="flex min-h-[21rem] flex-col items-center justify-center rounded-2xl border border-dashed border-primary/30 bg-accent/30 px-6 text-center"
                   >
-                    <CircleAlert className="mb-4 text-primary" size={28} strokeWidth={1.5} />
+                    <CircleAlert
+                      className="mb-4 text-primary"
+                      size={28}
+                      strokeWidth={1.5}
+                    />
                     <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
                       {getErrorMessage(
                         availabilityQuery.error,
@@ -313,38 +486,98 @@ export function ReservationSection() {
                         </span>
                       ))}
                     </div>
-                    <div className="grid grid-cols-7 gap-1">
+
+                    <div className="grid grid-cols-7 gap-y-1">
                       {calendarDays.map((day) => {
                         const dateKey = format(day, "yyyy-MM-dd");
                         const isCurrentMonth = day.getMonth() === visibleMonth.getMonth();
-                        const isOccupied = occupiedDates.has(dateKey);
+                        const isOccupied = allOccupiedDates.has(dateKey);
                         const isPast = isBefore(day, today);
-                        const isSelected = selectedDate ? isSameDay(day, selectedDate) : false;
-                        const isDisabled = !isCurrentMonth || isOccupied || isPast || isCalendarLoading;
+                        const isToday = isSameDay(day, today);
+                        const isCheckIn = checkIn ? isSameDay(day, checkIn) : false;
+                        const isCheckOut = checkOut ? isSameDay(day, checkOut) : false;
+                        const isEndpoint = isCheckIn || isCheckOut;
+
+                        // Is this day inside the selected (or hover-preview) range?
+                        const inRange =
+                          rangeStart &&
+                          rangeEnd &&
+                          !isSameDay(rangeStart, rangeEnd) &&
+                          isWithinInterval(day, {
+                            start: rangeStart,
+                            end: rangeEnd,
+                          }) &&
+                          !isSameDay(day, rangeStart) &&
+                          !isSameDay(day, rangeEnd);
+
+                        // Checkout date is blocked if it would include an occupied night.
+                        const isBlockedCheckOut =
+                          step === "checkOut" &&
+                          checkIn &&
+                          !isBefore(day, checkIn) &&
+                          maxCheckOut &&
+                          !isBefore(day, maxCheckOut);
+
+                        const isDisabled =
+                          !isCurrentMonth ||
+                          isOccupied ||
+                          isPast ||
+                          isCalendarLoading ||
+                          !!isBlockedCheckOut;
+
+                        const isRangeStart = rangeStart ? isSameDay(day, rangeStart) : false;
+                        const isRangeEnd = rangeEnd ? isSameDay(day, rangeEnd) : false;
 
                         return (
                           <button
                             key={dateKey}
                             type="button"
                             data-testid={`button-reservation-date-${dateKey}`}
-                            aria-label={`${formatDateForGuest(day)}${isOccupied ? ", indisponível" : ""}`}
-                            aria-pressed={isSelected}
+                            aria-label={`${formatDateLong(day)}${isOccupied ? ", indisponível" : ""}`}
+                            aria-pressed={isCheckIn || isCheckOut}
                             disabled={isDisabled}
                             onClick={() => handleSelectDate(day)}
+                            onMouseEnter={() =>
+                              step === "checkOut" ? setHoverDate(day) : undefined
+                            }
+                            onMouseLeave={() =>
+                              step === "checkOut" ? setHoverDate(null) : undefined
+                            }
                             className={cn(
-                              "relative flex aspect-square items-center justify-center rounded-xl text-sm transition-colors duration-200",
+                              "relative flex aspect-square items-center justify-center text-sm transition-colors duration-150",
                               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
-                              isCurrentMonth && !isDisabled && "text-foreground hover:bg-accent",
+                              // base
+                              isCurrentMonth &&
+                                !isDisabled &&
+                                !isEndpoint &&
+                                !inRange &&
+                                "rounded-xl text-foreground hover:bg-accent",
                               !isCurrentMonth && "text-muted-foreground/25",
                               isPast && isCurrentMonth && "text-muted-foreground/40",
-                              isOccupied && isCurrentMonth && "bg-primary/10 text-primary/55 line-through",
-                              isSelected &&
-                                "bg-primary font-semibold text-primary-foreground shadow-md hover:bg-primary/90",
-                              isSameDay(day, today) &&
-                                !isSelected &&
-                                !isOccupied &&
+                              // occupied
+                              isOccupied &&
                                 isCurrentMonth &&
-                                "font-semibold text-secondary after:absolute after:bottom-2 after:h-1 after:w-1 after:rounded-full after:bg-secondary",
+                                "rounded-xl bg-primary/10 text-primary/55 line-through",
+                              // today dot
+                              isToday &&
+                                !isEndpoint &&
+                                !inRange &&
+                                isCurrentMonth &&
+                                "font-semibold text-secondary after:absolute after:bottom-1.5 after:h-1 after:w-1 after:rounded-full after:bg-secondary",
+                              // range interior (no border-radius on sides)
+                              inRange &&
+                                "bg-primary/15 text-foreground rounded-none first:rounded-l-xl last:rounded-r-xl",
+                              // endpoints
+                              isRangeStart &&
+                                rangeEnd &&
+                                !isSameDay(rangeStart!, rangeEnd) &&
+                                "rounded-r-none",
+                              isRangeEnd &&
+                                rangeStart &&
+                                !isSameDay(rangeStart, rangeEnd!) &&
+                                "rounded-l-none",
+                              isEndpoint &&
+                                "rounded-xl bg-primary font-semibold text-primary-foreground shadow-md hover:bg-primary/90 z-10",
                             )}
                           >
                             {format(day, "d")}
@@ -352,24 +585,26 @@ export function ReservationSection() {
                         );
                       })}
                     </div>
+
                     <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-xs font-light text-muted-foreground">
                       <span className="flex items-center gap-2">
                         <span className="h-2.5 w-2.5 rounded-full bg-primary" />
-                        Escolhida
+                        Check-in / Check-out
                       </span>
                       <span className="flex items-center gap-2">
                         <span className="h-2.5 w-2.5 rounded-full bg-primary/20" />
-                        Ocupada
+                        Período escolhido
                       </span>
                       <span className="flex items-center gap-2">
-                        <span className="h-2.5 w-2.5 rounded-full bg-secondary" />
-                        Hoje
+                        <span className="h-2.5 w-2.5 rounded-full bg-primary/10 ring-1 ring-primary/30" />
+                        Ocupada
                       </span>
                     </div>
                   </div>
                 )}
               </div>
 
+              {/* Form / Success */}
               <div className="border-t border-border/70 bg-accent/25 px-6 py-6 md:px-9 md:py-7">
                 {success ? (
                   <div data-testid="status-reservation-success" className="space-y-5">
@@ -380,9 +615,17 @@ export function ReservationSection() {
                       <div>
                         <p className="text-xl text-foreground">Pedido recebido com carinho.</p>
                         <p className="mt-1 text-sm font-light leading-relaxed text-muted-foreground">
-                          Guardamos seu pedido para{" "}
+                          Guardamos{" "}
                           <strong className="font-medium text-foreground">
-                            {formatDateForGuest(new Date(`${success.date}T12:00:00`))}
+                            {success.nights} {success.nights === 1 ? "noite" : "noites"}
+                          </strong>{" "}
+                          — de{" "}
+                          <strong className="font-medium text-foreground">
+                            {formatDateShort(new Date(`${success.checkIn}T12:00:00`))}
+                          </strong>{" "}
+                          a{" "}
+                          <strong className="font-medium text-foreground">
+                            {formatDateShort(new Date(`${success.checkOut}T12:00:00`))}
                           </strong>
                           . Agora só falta combinarmos os detalhes.
                         </p>
@@ -402,32 +645,51 @@ export function ReservationSection() {
                     <button
                       type="button"
                       data-testid="button-new-reservation"
-                      onClick={() => {
-                        setSuccess(null);
-                        setSelectedDate(null);
-                        setFormError("");
-                      }}
+                      onClick={resetSelection}
                       className="mx-auto flex items-center text-sm font-medium text-muted-foreground underline decoration-primary/50 underline-offset-4 transition-colors hover:text-foreground"
                     >
-                      Escolher outra noite
+                      Escolher outro período
                       <ArrowRight className="ml-2" size={14} />
                     </button>
                   </div>
                 ) : (
                   <form data-testid="reservation-form" onSubmit={handleSubmit} className="space-y-5">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-secondary">
-                        Sua noite
-                      </p>
-                      <p
-                        data-testid="text-selected-date"
-                        className="mt-2 min-h-7 text-lg capitalize text-foreground"
-                      >
-                        {selectedDate
-                          ? formatDateForGuest(selectedDate)
-                          : "Selecione uma data disponível acima"}
-                      </p>
+                    {/* Period summary */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-secondary">
+                          Check-in
+                        </p>
+                        <p
+                          data-testid="text-selected-checkin"
+                          className="mt-1.5 min-h-7 text-base capitalize text-foreground"
+                        >
+                          {checkIn
+                            ? formatDateShort(checkIn)
+                            : <span className="text-muted-foreground/60 text-sm">Selecione no calendário</span>}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-secondary">
+                          Check-out
+                        </p>
+                        <p
+                          data-testid="text-selected-checkout"
+                          className="mt-1.5 min-h-7 text-base capitalize text-foreground"
+                        >
+                          {checkOut
+                            ? formatDateShort(checkOut)
+                            : <span className="text-muted-foreground/60 text-sm">
+                                {checkIn ? "Selecione a saída" : "—"}
+                              </span>}
+                        </p>
+                      </div>
                     </div>
+                    {nights !== null && (
+                      <p className="text-sm font-medium text-secondary">
+                        {nights} {nights === 1 ? "noite" : "noites"}
+                      </p>
+                    )}
 
                     <div className="grid gap-4 sm:grid-cols-2">
                       <label className="space-y-2">
@@ -436,7 +698,7 @@ export function ReservationSection() {
                           data-testid="input-reservation-name"
                           type="text"
                           value={name}
-                          onChange={(event) => setName(event.target.value)}
+                          onChange={(e) => setName(e.target.value)}
                           placeholder="Como podemos chamar você?"
                           autoComplete="name"
                           maxLength={120}
@@ -449,7 +711,7 @@ export function ReservationSection() {
                           data-testid="input-reservation-phone"
                           type="tel"
                           value={phone}
-                          onChange={(event) => setPhone(event.target.value)}
+                          onChange={(e) => setPhone(e.target.value)}
                           placeholder="(11) 99999-9999"
                           autoComplete="tel"
                           maxLength={30}
@@ -472,7 +734,7 @@ export function ReservationSection() {
                     <Button
                       type="submit"
                       data-testid="button-submit-reservation"
-                      disabled={reservationMutation.isPending}
+                      disabled={reservationMutation.isPending || !checkIn || !checkOut}
                       className="w-full rounded-full bg-primary py-6 text-base text-primary-foreground shadow-lg shadow-primary/15 transition-transform hover:-translate-y-0.5 hover:bg-primary/90 disabled:cursor-wait disabled:opacity-70"
                     >
                       {reservationMutation.isPending ? (
@@ -482,7 +744,7 @@ export function ReservationSection() {
                         </>
                       ) : (
                         <>
-                          Pedir esta noite
+                          Pedir este período
                           <ArrowRight className="ml-2" size={18} />
                         </>
                       )}

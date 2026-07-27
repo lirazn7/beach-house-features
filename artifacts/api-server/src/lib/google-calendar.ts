@@ -156,16 +156,25 @@ export async function getOccupiedDates(
   return occupiedDatesFromEvents(events, rangeStart, rangeEnd);
 }
 
-export async function isDateOccupied(date: string): Promise<boolean> {
-  const events = await listEvents(date, addDays(date, 1));
-  return occupiedDatesFromEvents(events, date, addDays(date, 1)).includes(date);
+export async function isRangeOccupied(
+  checkIn: string,
+  checkOut: string,
+): Promise<boolean> {
+  const events = await listEvents(checkIn, checkOut);
+  return occupiedDatesFromEvents(events, checkIn, checkOut).length > 0;
 }
 
 export async function createPreReservation(input: {
-  date: string;
+  checkIn: string;
+  checkOut: string;
   name: string;
   phone: string;
 }): Promise<string> {
+  const nights =
+    (new Date(`${input.checkOut}T12:00:00Z`).getTime() -
+      new Date(`${input.checkIn}T12:00:00Z`).getTime()) /
+    86_400_000;
+
   const event = await calendarRequest<{ id?: string }>(
     `${calendarPath("/events")}?sendUpdates=none`,
     {
@@ -177,10 +186,13 @@ export async function createPreReservation(input: {
           "Pedido de pré-reserva pelo site Casa Juquehy.",
           `Nome: ${input.name}`,
           `Telefone: ${input.phone}`,
+          `Check-in: ${input.checkIn}`,
+          `Check-out: ${input.checkOut}`,
+          `Noites: ${nights}`,
           "Confirmação pendente via WhatsApp.",
         ].join("\n"),
-        start: { date: input.date },
-        end: { date: addDays(input.date, 1) },
+        start: { date: input.checkIn },
+        end: { date: input.checkOut },
         extendedProperties: {
           private: { casaJuquehyPreReservation: "true" },
         },
