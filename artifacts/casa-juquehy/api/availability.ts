@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getOccupiedDates } from "./_lib/google-calendar";
+import { getOccupiedDates } from "./_lib/google-calendar.js";
 
 function cors(res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");

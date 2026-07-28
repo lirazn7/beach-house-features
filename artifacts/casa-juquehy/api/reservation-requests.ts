@@ -1,6 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { createPreReservation, isRangeOccupied } from "./_lib/google-calendar";
-
+import { createPreReservation, isRangeOccupied } from "./_lib/google-calendar.js";
 const MAX_NIGHTS = 60;
 
 const ownerWhatsApp = (process.env.CASA_JUQUEHY_WHATSAPP ?? "5511953553708").replace(
