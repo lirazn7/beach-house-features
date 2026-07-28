@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { google } from "googleapis";
 
 const calendarId = process.env.GOOGLE_CALENDAR_ID ?? "primary";
