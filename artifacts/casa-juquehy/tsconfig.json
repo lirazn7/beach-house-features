@@ -18,5 +18,5 @@
       "@assets/*": ["../../attached_assets/*", "./src/assets/*"]
     }
   },
-  "include": ["src", "../../attached_assets"]
+  "include": ["src", "src/vite-env.d.ts", "../../attached_assets/**/*"]
 }
