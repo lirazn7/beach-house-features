@@ -744,7 +744,7 @@ export function ReservationSection() {
                         </>
                       ) : (
                         <>
-                          Pedir este período
+                          Checar disponibilidade
                           <ArrowRight className="ml-2" size={18} />
                         </>
                       )}
