@@ -15,8 +15,8 @@
     "jsx": "react-jsx",
     "paths": {
       "@/*": ["./src/*"],
-      "@assets/*": ["./attached_assets/*", "./src/assets/*"]
+      "@assets/*": ["../../attached_assets/*", "./src/assets/*"]
     }
   },
-  "include": ["src", "attached_assets"]
+  "include": ["src", "../../attached_assets"]
 }
