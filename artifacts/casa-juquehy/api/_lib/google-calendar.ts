@@ -24,7 +24,7 @@ function getCalendarClient() {
     scopes: ["https://www.googleapis.com/auth/calendar"],
   });
 
-  return google.calendar({ version: "v3" as const, auth });
+  return google.calendar({ version: "v3", auth: auth as any });
 }
 
 type CalendarEvent = {
