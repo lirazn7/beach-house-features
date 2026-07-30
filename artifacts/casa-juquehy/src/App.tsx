@@ -107,11 +107,11 @@ export default function App() {
             <Reveal animation="fade-up" delay={400}>
               <div className="grid grid-cols-2 gap-6 pt-4">
                 <div className="space-y-2">
-                  <span className="text-4xl font-serif text-primary block">4</span>
+                  <span className="text-4xl font-serif text-primary block">2</span>
                   <span className="text-sm font-semibold tracking-wider uppercase text-muted-foreground">Suítes</span>
                 </div>
                 <div className="space-y-2">
-                  <span className="text-4xl font-serif text-primary block">10</span>
+                  <span className="text-4xl font-serif text-primary block">8</span>
                   <span className="text-sm font-semibold tracking-wider uppercase text-muted-foreground">Hóspedes</span>
                 </div>
               </div>
