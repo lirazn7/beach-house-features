@@ -319,17 +319,7 @@ export default function App() {
           </div>
         </div>
       </footer>
+      <Analytics />
     </div>
   );
-
-  export default function App() {
-    return (
-      <main>
-        {/* Aqui estarão todos os seus outros componentes (Gallery, ReservationSection, etc) */}
-
-        {/* Componente invisível do Vercel Analytics */}
-        <Analytics />
-      </main>
-    );
-  }
 }
