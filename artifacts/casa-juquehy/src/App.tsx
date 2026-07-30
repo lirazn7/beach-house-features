@@ -1,12 +1,13 @@
+import { Analytics } from "@vercel/analytics/react";
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Gallery } from '@/components/Gallery';
 import { ReservationSection } from '@/components/ReservationSection';
 import { Reveal } from '@/components/Reveal';
 import { HERO_IMAGE, GALLERY_IMAGES } from '@/lib/images';
-import { 
-  Wifi, Waves, Wind, Car, MapPin, 
-  Coffee, Sun, Trees, ArrowRight, Instagram 
+import {
+  Wifi, Waves, Wind, Car, MapPin,
+  Coffee, Sun, Trees, ArrowRight, Instagram
 } from 'lucide-react';
 import { useInView } from '@/hooks/use-in-view';
 import { cn } from '@/lib/utils';
@@ -14,10 +15,10 @@ import { cn } from '@/lib/utils';
 // Helper component for images with reveal
 function RevealImage({ src, alt, className }: { src: string, alt: string, className?: string }) {
   const { ref, isInView } = useInView({ threshold: 0.2 });
-  
+
   return (
-    <div 
-      ref={ref} 
+    <div
+      ref={ref}
       className={cn("image-reveal-wrapper rounded-2xl overflow-hidden", className, isInView && "in-view")}
     >
       <img src={src} alt={alt} className="w-full h-full object-cover image-reveal" />
@@ -30,40 +31,40 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden selection:bg-primary/20 selection:text-foreground">
-      
+
       {/* 1. HERO SECTION */}
       <section className="relative h-[90svh] w-full flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0 bg-black/30 z-10" />
-          <img 
-            src={HERO_IMAGE} 
-            alt="Casa Juquehy vista frontal" 
+          <img
+            src={HERO_IMAGE}
+            alt="Casa Juquehy vista frontal"
             className="w-full h-full object-cover animate-in fade-in zoom-in-105 duration-2000"
           />
         </div>
-        
+
         <div className="relative z-20 text-center px-4 max-w-4xl mx-auto flex flex-col items-center">
           <Reveal animation="fade-up" delay={200}>
             <span className="text-white/90 uppercase tracking-[0.2em] text-sm font-semibold mb-4 block drop-shadow-md">
               Litoral Norte, São Paulo
             </span>
           </Reveal>
-          
+
           <Reveal animation="fade-up" delay={400}>
             <h1 className="text-5xl md:text-7xl lg:text-8xl font-serif text-white mb-6 drop-shadow-lg">
               Casa Juquehy
             </h1>
           </Reveal>
-          
+
           <Reveal animation="fade-up" delay={600}>
             <p className="text-lg md:text-xl text-white/90 font-light max-w-2xl mx-auto mb-10 drop-shadow-md">
               O seu refúgio de tranquilidade, onde a brisa do mar encontra o conforto de um lar desenhado para memórias inesquecíveis.
             </p>
           </Reveal>
-          
+
           <Reveal animation="scale-up" delay={800}>
-            <Button 
-              size="lg" 
+            <Button
+              size="lg"
               className="bg-primary text-primary-foreground hover:bg-primary/90 text-lg px-8 py-6 rounded-full shadow-xl transition-transform hover:scale-105"
               asChild
             >
@@ -78,25 +79,25 @@ export default function App() {
       {/* 2. INTRO SECTION */}
       <section className="py-24 md:py-32 px-6 max-w-7xl mx-auto">
         <div className="grid md:grid-cols-2 gap-12 lg:gap-20 items-center">
-          <RevealImage 
-            src={GALLERY_IMAGES[1]} 
-            alt="Interior da casa" 
-            className="aspect-[4/5] shadow-2xl" 
+          <RevealImage
+            src={GALLERY_IMAGES[1]}
+            alt="Interior da casa"
+            className="aspect-[4/5] shadow-2xl"
           />
-          
+
           <div className="space-y-8">
             <Reveal animation="fade-up">
               <h2 className="text-3xl md:text-5xl text-foreground font-serif leading-tight">
                 Design rústico, alma caiçara.
               </h2>
             </Reveal>
-            
+
             <Reveal animation="fade-up" delay={200}>
               <p className="text-lg text-muted-foreground font-light leading-relaxed">
                 A poucos passos do mar, a Casa Juquehy foi pensada para ser uma extensão da natureza ao redor. Madeiras nobres, texturas naturais e espaços amplos que convidam a luz do sol a entrar.
               </p>
             </Reveal>
-            
+
             <Reveal animation="fade-up" delay={300}>
               <p className="text-lg text-muted-foreground font-light leading-relaxed">
                 Cada canto foi desenhado para acolher. Seja para um café da manhã demorado, um mergulho de tarde ou um jantar sob as estrelas. Aqui, o tempo passa diferente.
@@ -154,7 +155,7 @@ export default function App() {
       {/* 4. SPACES SHOWCASE */}
       <section className="py-24 md:py-32 px-6 max-w-7xl mx-auto">
         <div className="space-y-24">
-          
+
           <div className="grid md:grid-cols-12 gap-8 md:gap-16 items-center">
             <div className="md:col-span-5 space-y-6 order-2 md:order-1">
               <Reveal animation="fade-up">
@@ -220,7 +221,7 @@ export default function App() {
               </p>
             </Reveal>
           </div>
-          
+
           <Reveal animation="fade-up" delay={200}>
             <Gallery />
           </Reveal>
@@ -240,13 +241,13 @@ export default function App() {
                 A joia de São Sebastião
               </h2>
             </Reveal>
-            
+
             <Reveal animation="fade-up" delay={200}>
               <p className="text-lg text-muted-foreground font-light leading-relaxed">
                 Juquehy é conhecida como a "joia do Litoral Norte". Com areia fina, mar cristalino de águas calmas e cercada pela exuberância da Mata Atlântica, é o cenário perfeito para famílias e casais.
               </p>
             </Reveal>
-            
+
             <Reveal animation="fade-up" delay={300}>
               <p className="text-lg text-muted-foreground font-light leading-relaxed">
                 A casa está localizada em rua tranquila, garantindo silêncio e segurança, mas a uma curta caminhada tanto da praia quanto do centrinho gastronômico e charmosos shoppings de verão.
@@ -261,37 +262,37 @@ export default function App() {
               </Button>
             </Reveal>
           </div>
-          
+
           <div className="relative z-10 h-full flex items-center">
-            <RevealImage 
-              src={GALLERY_IMAGES[5]} 
-              alt="Praia de Juquehy" 
-              className="w-full aspect-square md:aspect-[4/3] rounded-3xl shadow-2xl" 
+            <RevealImage
+              src={GALLERY_IMAGES[5]}
+              alt="Praia de Juquehy"
+              className="w-full aspect-square md:aspect-[4/3] rounded-3xl shadow-2xl"
             />
           </div>
         </div>
       </section>
 
-       {/* 8. CTA & FOOTER */}
+      {/* 8. CTA & FOOTER */}
       <section className="bg-foreground text-background py-32 px-6 text-center">
         <div className="max-w-3xl mx-auto space-y-10">
           <Reveal animation="fade-up">
             <Sun className="w-12 h-12 text-primary mx-auto opacity-80" strokeWidth={1} />
           </Reveal>
-          
+
           <Reveal animation="fade-up" delay={100}>
             <h2 className="text-4xl md:text-6xl font-serif">Sua próxima viagem começa aqui.</h2>
           </Reveal>
-          
+
           <Reveal animation="fade-up" delay={200}>
             <p className="text-xl text-white/60 font-light">
               Consulte nossas datas disponíveis e garanta seus dias de descanso.
             </p>
           </Reveal>
-          
+
           <Reveal animation="scale-up" delay={400}>
-            <Button 
-              size="lg" 
+            <Button
+              size="lg"
               className="bg-primary text-primary-foreground hover:bg-primary/90 text-lg px-10 py-7 rounded-full shadow-2xl transition-transform hover:scale-105"
               asChild
             >
@@ -306,11 +307,11 @@ export default function App() {
       <footer className="bg-foreground text-white/40 py-12 px-6 border-t border-white/10 text-center">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
           <span className="font-serif text-2xl text-white/80">Casa Juquehy</span>
-          
+
           <div className="text-sm font-light">
             © {new Date().getFullYear()} Casa Juquehy. Todos os direitos reservados.
           </div>
-          
+
           <div className="flex gap-4">
             <a href="#" className="hover:text-white transition-colors">
               <Instagram className="w-5 h-5" />
@@ -320,4 +321,15 @@ export default function App() {
       </footer>
     </div>
   );
+
+  export default function App() {
+    return (
+      <main>
+        {/* Aqui estarão todos os seus outros componentes (Gallery, ReservationSection, etc) */}
+
+        {/* Componente invisível do Vercel Analytics */}
+        <Analytics />
+      </main>
+    );
+  }
 }
